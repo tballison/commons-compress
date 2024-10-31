@@ -289,8 +289,8 @@ public abstract class BandSet {
     protected CPUTF8[][] parseCPSignatureReferences(final String name, final InputStream in, final BHSDCodec codec, final int[] counts)
             throws IOException, Pack200Exception {
         int sum = 0;
-        for (int i = 0; i < counts.length; i++) {
-            sum += counts[i];
+        for (final int count : counts) {
+            sum += count;
         }
         final int[] indices = decodeBandInt(name, in, codec, sum);
         final CPUTF8[] result1 = new CPUTF8[sum];
@@ -402,7 +402,7 @@ public abstract class BandSet {
     }
 
     /**
-     * Parses <i>count</i> references from {@code in}, using {@code codec} to decode the values as indexes into {@code reference} (which is populated prior to
+     * Parses <em>count</em> references from {@code in}, using {@code codec} to decode the values as indexes into {@code reference} (which is populated prior to
      * this call). An exception is thrown if a decoded index falls outside the range [0..reference.length-1].
      *
      * @param name      the band name
@@ -421,7 +421,7 @@ public abstract class BandSet {
     }
 
     /**
-     * Parses <i>count</i> references from {@code in}, using {@code codec} to decode the values as indexes into {@code reference} (which is populated prior to
+     * Parses <em>count</em> references from {@code in}, using {@code codec} to decode the values as indexes into {@code reference} (which is populated prior to
      * this call). An exception is thrown if a decoded index falls outside the range [0..reference.length-1]. Unlike the other parseReferences, this
      * post-processes the result into an array of results.
      *

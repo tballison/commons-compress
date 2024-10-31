@@ -42,13 +42,11 @@ public class BoundedInputStream extends org.apache.commons.io.input.BoundedInput
     /**
      * Gets how many bytes remain to read.
      *
-     * TODO Use Apache Commons IO 2.16.0 org.apache.commons.io.input.BoundedInputStream.getRemaining() when released.
-     *
      * @return bytes how many bytes remain to read.
      * @since 1.21
      */
     public long getBytesRemaining() {
-        return getMaxLength() - getCount();
+        return getMaxCount() - getCount();
     }
 
 //    @Override

@@ -22,6 +22,7 @@ import java.io.FileInputStream;
 import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Field;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Files;
@@ -33,7 +34,7 @@ import org.apache.commons.compress.harmony.pack200.Pack200Adapter;
 import org.apache.commons.compress.harmony.pack200.Pack200Exception;
 import org.apache.commons.compress.java.util.jar.Pack200.Unpacker;
 import org.apache.commons.io.input.BoundedInputStream;
-import org.apache.commons.lang3.reflect.FieldUtils;
+import org.apache.commons.io.input.CloseShieldInputStream;
 
 /**
  * This class provides the binding between the standard Pack200 interface and the internal interface for (un)packing.
@@ -55,12 +56,18 @@ public class Pack200UnpackerAdapter extends Pack200Adapter implements Unpacker {
     }
 
     private static BoundedInputStream newBoundedInputStream(final FileInputStream fileInputStream) throws IOException {
-        return newBoundedInputStream(readPathString(fileInputStream));
+        return newBoundedInputStream(readPath(fileInputStream));
     }
 
+    @SuppressWarnings("resource") // Caller closes.
     static BoundedInputStream newBoundedInputStream(final InputStream inputStream) throws IOException {
         if (inputStream instanceof BoundedInputStream) {
+            // Already bound.
             return (BoundedInputStream) inputStream;
+        }
+        if (inputStream instanceof CloseShieldInputStream) {
+            // Don't unwrap to keep close shield.
+            return newBoundedInputStream(BoundedInputStream.builder().setInputStream(inputStream).get());
         }
         if (inputStream instanceof FilterInputStream) {
             return newBoundedInputStream(unwrap((FilterInputStream) inputStream));
@@ -69,7 +76,7 @@ public class Pack200UnpackerAdapter extends Pack200Adapter implements Unpacker {
             return newBoundedInputStream((FileInputStream) inputStream);
         }
         // No limit
-        return new BoundedInputStream(inputStream);
+        return newBoundedInputStream(BoundedInputStream.builder().setInputStream(inputStream).get());
     }
 
     /**
@@ -82,9 +89,15 @@ public class Pack200UnpackerAdapter extends Pack200Adapter implements Unpacker {
      * @return a new BoundedInputStream
      * @throws IOException if an I/O error occurs
      */
-    @SuppressWarnings("resource")
+    @SuppressWarnings("resource") // Caller closes.
     static BoundedInputStream newBoundedInputStream(final Path path) throws IOException {
-        return new BoundedInputStream(new BufferedInputStream(Files.newInputStream(path)), Files.size(path));
+        // @formatter:off
+        return BoundedInputStream.builder()
+                .setInputStream(new BufferedInputStream(Files.newInputStream(path)))
+                .setMaxCount(Files.size(path))
+                .setPropagateClose(false)
+                .get();
+        // @formatter:on
     }
 
     /**
@@ -108,7 +121,7 @@ public class Pack200UnpackerAdapter extends Pack200Adapter implements Unpacker {
      * The new BoundedInputStream wraps a new {@link BufferedInputStream}.
      * </p>
      *
-     * @param path The URL.
+     * @param url The URL.
      * @return a new BoundedInputStream
      * @throws IOException        if an I/O error occurs
      * @throws URISyntaxException
@@ -117,17 +130,14 @@ public class Pack200UnpackerAdapter extends Pack200Adapter implements Unpacker {
         return newBoundedInputStream(Paths.get(url.toURI()));
     }
 
-    @SuppressWarnings("unchecked")
-    private static <T> T readField(final Object object, final String fieldName) {
+    static Path readPath(final FileInputStream fis) {
         try {
-            return (T) FieldUtils.readField(object, fieldName, true);
-        } catch (final IllegalAccessException e) {
-            return null;
+            Field field = FileInputStream.class.getDeclaredField("path");
+            field.setAccessible(true);
+            return Paths.get((String) field.get(fis));
+        } catch (NoSuchFieldException | IllegalAccessException e) {
+            throw new RuntimeException("Failed to read the path from the FileInputStream", e);
         }
-    }
-
-    static String readPathString(final FileInputStream fis) {
-        return readField(fis, "path");
     }
 
     /**
@@ -137,24 +147,32 @@ public class Pack200UnpackerAdapter extends Pack200Adapter implements Unpacker {
      * @return The wrapped InputStream
      */
     static InputStream unwrap(final FilterInputStream filterInputStream) {
-        return readField(filterInputStream, "in");
+        try {
+            Field field = FilterInputStream.class.getDeclaredField("in");
+            field.setAccessible(true);
+            return (InputStream) field.get(filterInputStream);
+        } catch (NoSuchFieldException | IllegalAccessException e) {
+            throw new RuntimeException("Failed to unwrap the FilterInputStream", e);
+        }
     }
 
     /**
      * Unwraps the given InputStream if it is an FilterInputStream to return its wrapped InputStream.
      *
-     * @param filterInputStream The FilterInputStream to unwrap.
+     * @param inputStream The FilterInputStream to unwrap.
      * @return The wrapped InputStream
      */
-    @SuppressWarnings("resource")
     static InputStream unwrap(final InputStream inputStream) {
         return inputStream instanceof FilterInputStream ? unwrap((FilterInputStream) inputStream) : inputStream;
     }
 
     @Override
     public void unpack(final File file, final JarOutputStream out) throws IOException {
-        if (file == null || out == null) {
-            throw new IllegalArgumentException("Must specify both input and output streams");
+        if (file == null) {
+            throw new IllegalArgumentException("Must specify input file.");
+        }
+        if (out == null) {
+            throw new IllegalArgumentException("Must specify output stream.");
         }
         final long size = file.length();
         final int bufferSize = size > 0 && size < DEFAULT_BUFFER_SIZE ? (int) size : DEFAULT_BUFFER_SIZE;
@@ -165,8 +183,11 @@ public class Pack200UnpackerAdapter extends Pack200Adapter implements Unpacker {
 
     @Override
     public void unpack(final InputStream in, final JarOutputStream out) throws IOException {
-        if (in == null || out == null) {
-            throw new IllegalArgumentException("Must specify both input and output streams");
+        if (in == null) {
+            throw new IllegalArgumentException("Must specify input stream.");
+        }
+        if (out == null) {
+            throw new IllegalArgumentException("Must specify output stream.");
         }
         completed(0);
         try {

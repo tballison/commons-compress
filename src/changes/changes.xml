@@ -44,16 +44,78 @@ The <action> type attribute can be add,update,fix,remove.
     <title>Apache Commons Compress Release Notes</title>
   </properties>
   <body>
-    <release version="1.27.0" date="YYYY-MM-DD" description="Minor feature and maintenance release.">
+    <release version="1.27.2" date="YYYY-MM-DD" description="This is a feature and maintenance release. Java 8 or later is required.">
+      <!-- FIX -->
+      <action type="fix" issue="COMPRESS-686" dev="ggregory" due-to="Richard Blank, Gary Gregory">Better exception messages in SeekableInMemoryByteChannel.</action>
+      <action type="fix" dev="ggregory" due-to="yujincheng08, Gary Gregory">ZipArchiveOutputStream.addRawArchiveEntry() should check is2PhaseSource #571.</action> 
+      <action type="fix" dev="ebourg" due-to="Emmanuel Bourg">The runtime dependency on commons-lang3 has been removed</action>
+      <!-- ADD -->
+      <!-- UPDATE -->
+      <action type="update" dev="ggregory" due-to="Dependabot, Gary Gregory">Bump org.apache.commons:commons-parent from 72 to 78 #563, #567, #574, #582, #587, #595.</action>
+      <action type="update" dev="ggregory" due-to="Dependabot, Gary Gregory">Bump com.github.luben:zstd-jni from 1.5.6-4 to 1.5.6-6 #565, #578.</action>
+      <action type="update" dev="ggregory" due-to="Dependabot, Gary Gregory">Bump org.apache.commons:commons-lang3 from 3.16.0 to 3.17.0 #568.</action>
+      <action type="update" dev="ggregory" due-to="Dependabot, Gary Gregory">Bump commons-io:commons-io from 2.16.1 to 2.17.0 #575.</action>
+      <action type="update" dev="ggregory" due-to="Dependabot, Gary Gregory">Bump com.github.marschall:memoryfilesystem from 2.8.0 to 2.8.1 #577.</action>
+      <action type="update" dev="ggregory" due-to="Dependabot, Gary Gregory">Bump org.ow2.asm:asm from 9.7 to 9.7.1 #586.</action>     
+    </release>
+    <release version="1.27.1" date="2024-08-16" description="This is a feature and maintenance release. Java 8 or later is required.">
+     <action type="fix" issue="COMPRESS-686" dev="ggregory" due-to="Richard Blank, Gary Gregory">Compression into BZip2 format has unexpected end of file when using a BufferedOutputStream.</action>
+     <!-- UPDATE -->
+     <action type="update" dev="ggregory" due-to="Dependabot, Gary Gregory">Bump org.apache.commons:commons-lang3 from 3.15.0 to 3.16.0 #556.</action>
+    </release>
+    <release version="1.27.0" date="2024-08-03" description="This is a feature and maintenance release. Java 8 or later is required.">
+      <!-- FIX -->
+      <action type="fix" dev="ggregory" due-to="Gary Gregory">Fix PMD UnnecessaryFullyQualifiedName and others.</action>
+      <action type="fix" issue="COMPRESS-681" dev="ggregory" due-to="joker53-1, Gary Gregory">Support reading a 7z file that writing archive properties #541.</action>
+      <action type="fix" dev="ggregory" due-to="Mike Drob, Gary Gregory">Upgrade commons-io from 2.15.1 to 2.16.1 #513</action>
+      <action type="fix" dev="ggregory" due-to="Gary Gregory">CompressorOutputStream now extends FilterOutputStream.</action>
+      <action type="fix" dev="ggregory" due-to="Gary Gregory">ArchiveOutputStream now extends FilterOutputStream.</action>
+      <action type="fix" issue="COMPRESS-685" dev="ggregory" due-to="Archie L. Cobbs, Gary Gregory">Update Javadoc description for GzipCompressorInputStream #551.</action>
+      <action type="fix" dev="ggregory" due-to="Gary Gregory">Replace FileNameUtil.getCompressedFileName(String) use of Locale.ENGLISH with Locale.ROOT.</action>
+      <action type="fix" dev="ggregory" due-to="Gary Gregory">Fix SpotBugs DLS_DEAD_LOCAL_STORE in SevenZFile.readPackInfo(ByteBuffer, Archive).</action>
+      <action type="fix" dev="ggregory" due-to="Gary Gregory">Fix SpotBugs NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE in ZipFile.openZipChannel(Path, long, OpenOption[]).</action>
+      <action type="fix" dev="ggregory" due-to="Gary Gregory">Fix SpotBugs UC_USELESS_OBJECT in unpack200.CpBands.parseCpSignature(InputStream).</action>
+      <action type="fix" dev="ggregory" due-to="Gary Gregory">Fix PMD UselessOverridingMethod in unpack200.bytecode.InnerClassesAttribute.</action>
+      <action type="fix" dev="ggregory" due-to="Gary Gregory">Fix PMD UselessOverridingMethod in unpack200.bytecode.LineNumberTableAttribute.</action>
+      <action type="fix" dev="ggregory" due-to="Gary Gregory">Fix PMD CheckSkipResult in ZipArchiveInputStream.closeEntry().</action>
+      <!-- ADD -->
+      <action type="add" dev="ggregory" due-to="Gary Gregory">Add ArchiveInputStream.forEach(IOConsumer).</action>
+      <action type="add" dev="ggregory" due-to="Gary Gregory">Add ArchiveInputStream.iterator().</action>
+      <action type="add" dev="ggregory" due-to="Gary Gregory">Add ArchiveOutputStream.isFinished().</action>
+      <action type="add" dev="ggregory" due-to="Gary Gregory">Add ArchiveOutputStream.checkFinished().</action>
+      <!-- UPDATE -->
+      <action type="update" dev="sebb" issue="COMPRESS-684">Replace assert with Exception</action>
+      <action type="update" dev="ggregory" due-to="Dependabot, Gary Gregory">Bump org.apache.commons:commons-parent from 69 to 72 #537.</action>
+      <action type="update" dev="ggregory" due-to="Dependabot, Gary Gregory">Bump PMD from 6.x to 7.2.0.</action>
+      <action type="update" dev="ggregory" due-to="Dependabot, Gary Gregory">Bump commons-codec:commons-codec from 1.17.0 to 1.17.1 #544.</action>
+      <action type="update" dev="ggregory" due-to="Dependabot, Gary Gregory">Bump org.apache.commons:commons-lang3 from 3.14.0 to 3.15.0 #545.</action>
+      <action type="update" dev="ggregory" due-to="Dependabot, Gary Gregory">Bump com.github.luben:zstd-jni from 1.5.6-3 to 1.5.6-4 #548.</action>
+      <action type="update" dev="ggregory" due-to="Dependabot, Gary Gregory">Bump org.tukaani:xz from 1.9 to 1.10 #550.</action>
+      <action type="update" dev="ggregory" due-to="Dependabot, Gary Gregory">Bump org.hamcrest:hamcrest from 2.2 to 3.0 #552.</action>
+    </release>
+    <release version="1.26.2" date="2024-05-18" description="Minor feature and maintenance release.">
       <!-- FIX -->
       <action type="fix" issue="COMPRESS-665" dev="ggregory" due-to="Gary Gregory, Elliotte Rusty Harold">Deprecate org.apache.commons.compress.utils.CharsetNames in favor or java.nio.charset.StandardCharsets.</action>
       <action type="fix" issue="COMPRESS-674" dev="ggregory" due-to="Gren Elliot">Validate TarArchiveEntry checksums #500.</action>
       <action type="fix" issue="COMPRESS-676" dev="ecki" due-to="Martin Schneider">OSGi: Remove unresolvable dependencies in manifest and make the commons-io packages really optional.</action>
       <action type="fix" dev="ggregory" due-to="Gary Gregory">Avoid possible NullPointerException in org.apache.commons.compress.utils.Sets.newHashSet(E...).</action>
+      <action type="fix" issue="COMPRESS-677" dev="ggregory" due-to="Jeffrey Adamson, Gary Gregory">ZipArchiveOutputStream.setEncoding(String) with a null value throws IllegalArgumentException.</action>
+      <action type="fix" dev="ggregory" due-to="Gary Gregory">org.apache.commons.compress.harmony.unpack200.Archive.unpack() should not close streams it does not own (when constructed from Archive(InputStream, JarOutputStream)).</action>
+      <action type="fix" dev="ggregory" due-to="takaaki nakama, Gary Gregory">ArArchiveOutputStream doesn't pad correctly when a file name length is odd and greater than 16 (padding missing).</action>
+      <action type="fix" issue="COMPRESS-678" dev="ggregory" due-to="Gary Gregory">ArArchiveOutputStream should check that a file name length greater than 16 fits in a header.</action>
+      <action type="fix" dev="ggregory" due-to="Gary Gregory">ArArchiveOutputStream implicit narrowing conversion in compound assignment.</action>
+      <action type="fix" issue="COMPRESS-679" dev="ggregory" due-to="Mikaël MECHOULAM, Gary Gregory">Regression on parallel processing of 7zip files.</action>
+      <action type="fix" issue="COMPRESS-675" dev="ggregory" due-to="Tim Allison, Gary Gregory">Regression in pack200's Archive class -- underlying InputStream is now closed.</action>
+      <action type="fix" dev="ggregory" due-to="Gary Gregory">Avoid NullPointerException in java.nio.channels.spi.AbstractInterruptibleChannel.close() when calling org.apache.commons.compress.archivers.zip.FileRandomAccessOutputStream.close().</action>
+      <action type="fix" dev="ggregory" due-to="Gary Gregory">Fix SpotBugs NP_NULL_PARAM_DEREF in Sets.newHashSet().</action>
+      <action type="fix" dev="ggregory" due-to="Gary Gregory">Private class' method PackingLogger.setVerbose(boolean) should be private.</action>
       <!-- UPDATE -->
       <action type="update" dev="ggregory" due-to="Dependabot, Gary Gregory">Bump org.apache.commons:commons-parent from 66 to 69 #495, #508.</action>
       <action type="update" dev="ggregory" due-to="Dependabot, Gary Gregory">Bump org.ow2.asm:asm from 9.6 to 9.7 #504.</action>
       <action type="update" dev="ggregory" due-to="Gary Gregory, Dependabot">Bump com.github.luben:zstd-jni from 1.5.5-11 to 1.5.6-2 #510.</action>
+      <action type="update" dev="ggregory" due-to="Gary Gregory, Dependabot">Bump commons-io:commons-io from 2.15.1 to 2.16.1 #514.</action>
+      <action type="update" dev="ggregory" due-to="Dependabot">Bump org.slf4j:slf4j-api from 2.0.12 to 2.0.13 #519.</action>
+      <action type="update" dev="ggregory" due-to="Dependabot">Bump commons-codec:commons-codec from 1.16.1 to 1.17.0.</action>
     </release>
     <release version="1.26.1" date="2024-03-05" description="Minor feature and maintenance release.">
       <!-- FIX -->

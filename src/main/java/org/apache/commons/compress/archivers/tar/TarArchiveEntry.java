@@ -55,7 +55,8 @@ import org.apache.commons.compress.utils.TimeUtils;
 import org.apache.commons.io.file.attribute.FileTimes;
 
 /**
- * This class represents an entry in a Tar archive. It consists of the entry's header, as well as the entry's File. Entries can be instantiated in one of three
+ * An entry in a <a href="https://www.gnu.org/software/tar/manual/html_node/Standard.html">Tar archive</a>.
+ * It consists of the entry's header, as well as the entry's File. Entries can be instantiated in one of three
  * ways, depending on how they are to be used.
  * <p>
  * TarEntries that are created from the header bytes read from an archive are instantiated with the {@link TarArchiveEntry#TarArchiveEntry(byte[])} constructor.
@@ -219,10 +220,7 @@ public class TarArchiveEntry implements ArchiveEntry, TarConstants, EntryStreamO
     private static final Pattern PAX_EXTENDED_HEADER_FILE_TIMES_PATTERN = Pattern.compile("-?\\d{1,19}(?:\\.\\d{1,19})?");
 
     private static FileTime fileTimeFromOptionalSeconds(final long seconds) {
-        if (seconds <= 0) {
-            return null;
-        }
-        return TimeUtils.unixTimeToFileTime(seconds);
+        return seconds <= 0 ? null : FileTimes.fromUnixTime(seconds);
     }
 
     /**
@@ -268,7 +266,7 @@ public class TarArchiveEntry implements ArchiveEntry, TarConstants, EntryStreamO
 
     private static Instant parseInstantFromDecimalSeconds(final String value) throws IOException {
         // Validate field values to prevent denial of service attacks with BigDecimal values (see JDK-6560193)
-        if (!TarArchiveEntry.PAX_EXTENDED_HEADER_FILE_TIMES_PATTERN.matcher(value).matches()) {
+        if (!PAX_EXTENDED_HEADER_FILE_TIMES_PATTERN.matcher(value).matches()) {
             throw new IOException("Corrupted PAX header. Time field value is invalid '" + value + "'");
         }
 
@@ -384,7 +382,7 @@ public class TarArchiveEntry implements ArchiveEntry, TarConstants, EntryStreamO
     /** Extra, user supplied pax headers */
     private final Map<String, String> extraPaxHeaders = new HashMap<>();
 
-    private long dataOffset = EntryStreamOffsets.OFFSET_UNKNOWN;
+    private long dataOffset = OFFSET_UNKNOWN;
 
     /**
      * Constructs an empty entry and prepares the header values.
@@ -1481,7 +1479,7 @@ public class TarArchiveEntry implements ArchiveEntry, TarConstants, EntryStreamO
             throw new IOException("broken archive, entry with negative size");
         }
         offset += SIZELEN;
-        mTime = TimeUtils.unixTimeToFileTime(parseOctalOrBinary(header, offset, MODTIMELEN, lenient));
+        mTime = FileTimes.fromUnixTime(parseOctalOrBinary(header, offset, MODTIMELEN, lenient));
         offset += MODTIMELEN;
         checkSumOK = TarUtils.verifyCheckSum(header);
         offset += CHKSUMLEN;
@@ -1683,7 +1681,7 @@ public class TarArchiveEntry implements ArchiveEntry, TarConstants, EntryStreamO
                 this.groupId = ((Number) Files.getAttribute(file, "unix:gid", options)).longValue();
                 try {
                     setStatusChangeTime((FileTime) Files.getAttribute(file, "unix:ctime", options));
-                } catch (final IllegalArgumentException ex) { // NOSONAR
+                } catch (final IllegalArgumentException ignored) {
                     // ctime is not supported
                 }
             }
@@ -1810,7 +1808,7 @@ public class TarArchiveEntry implements ArchiveEntry, TarConstants, EntryStreamO
      * @since 1.22
      */
     public void setLastModifiedTime(final FileTime time) {
-        mTime = Objects.requireNonNull(time, "Time must not be null");
+        mTime = Objects.requireNonNull(time, "time");
     }
 
     /**

@@ -19,9 +19,6 @@ Apache Commons Compress
 Version ${version}
 Release Notes
 
-INTRODUCTION
-------------
-
 $introduction.replaceAll("(?<!\015)\012", "
 ")
 
@@ -159,7 +156,7 @@ patches, or suggestions for improvement, see the ${project.name} website:
 
 ${project.url}
 
-Download page: ${project.url}download_io.cgi
+Download page: ${project.url}download_compress.cgi
 
 Have fun!
 -Apache Commons Team

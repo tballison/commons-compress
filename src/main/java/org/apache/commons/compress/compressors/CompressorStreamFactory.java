@@ -63,7 +63,7 @@ import org.apache.commons.compress.utils.Sets;
 
 /**
  * <p>
- * Factory to create Compressor[In|Out]putStreams from names. To add other implementations you should extend CompressorStreamFactory and override the
+ * Creates a Compressor[In|Out]putStreams from names. To add other implementations you should extend CompressorStreamFactory and override the
  * appropriate methods (and call their implementation from super of course).
  * </p>
  *
@@ -227,15 +227,12 @@ public class CompressorStreamFactory implements CompressorStreamProvider {
         if (inputStream == null) {
             throw new IllegalArgumentException("Stream must not be null.");
         }
-
         if (compressorNames == null || compressorNames.isEmpty()) {
             throw new IllegalArgumentException("Compressor names cannot be null or empty");
         }
-
         if (!inputStream.markSupported()) {
             throw new IllegalArgumentException("Mark is not supported.");
         }
-
         final byte[] signature = new byte[12];
         inputStream.mark(signature.length);
         int signatureLength = -1;
@@ -245,47 +242,36 @@ public class CompressorStreamFactory implements CompressorStreamProvider {
         } catch (final IOException e) {
             throw new CompressorException("IOException while reading signature.", e);
         }
-
         if (compressorNames.contains(BZIP2) && BZip2CompressorInputStream.matches(signature, signatureLength)) {
             return BZIP2;
         }
-
         if (compressorNames.contains(GZIP) && GzipCompressorInputStream.matches(signature, signatureLength)) {
             return GZIP;
         }
-
         if (compressorNames.contains(PACK200) && Pack200CompressorInputStream.matches(signature, signatureLength)) {
             return PACK200;
         }
-
         if (compressorNames.contains(SNAPPY_FRAMED) && FramedSnappyCompressorInputStream.matches(signature, signatureLength)) {
             return SNAPPY_FRAMED;
         }
-
         if (compressorNames.contains(Z) && ZCompressorInputStream.matches(signature, signatureLength)) {
             return Z;
         }
-
         if (compressorNames.contains(DEFLATE) && DeflateCompressorInputStream.matches(signature, signatureLength)) {
             return DEFLATE;
         }
-
         if (compressorNames.contains(XZ) && XZUtils.matches(signature, signatureLength)) {
             return XZ;
         }
-
         if (compressorNames.contains(LZMA) && LZMAUtils.matches(signature, signatureLength)) {
             return LZMA;
         }
-
         if (compressorNames.contains(LZ4_FRAMED) && FramedLZ4CompressorInputStream.matches(signature, signatureLength)) {
             return LZ4_FRAMED;
         }
-
         if (compressorNames.contains(ZSTANDARD) && ZstdUtils.matches(signature, signatureLength)) {
             return ZSTANDARD;
         }
-
         throw new CompressorException("No Compressor found for the stream signature.");
     }
 
@@ -427,7 +413,7 @@ public class CompressorStreamFactory implements CompressorStreamProvider {
      * If true, decompress until the end of the input. If false, stop after the first stream and leave the input position to point to the next byte after the
      * stream
      */
-    private final Boolean decompressUntilEOF;
+    private final Boolean decompressUntilEof;
     // This is Boolean so setDecompressConcatenated can determine whether it has
     // been set by the ctor
     // once the setDecompressConcatenated method has been removed, it can revert
@@ -449,7 +435,7 @@ public class CompressorStreamFactory implements CompressorStreamProvider {
      * Constructs an instance with the decompress Concatenated option set to false.
      */
     public CompressorStreamFactory() {
-        this.decompressUntilEOF = null;
+        this.decompressUntilEof = null;
         this.memoryLimitInKb = -1;
     }
 
@@ -475,7 +461,7 @@ public class CompressorStreamFactory implements CompressorStreamProvider {
      * @since 1.14
      */
     public CompressorStreamFactory(final boolean decompressUntilEOF, final int memoryLimitInKb) {
-        this.decompressUntilEOF = decompressUntilEOF;
+        this.decompressUntilEof = decompressUntilEOF;
         // Also copy to existing variable so can continue to use that as the
         // current value
         this.decompressConcatenated = decompressUntilEOF;
@@ -533,73 +519,58 @@ public class CompressorStreamFactory implements CompressorStreamProvider {
         if (name == null || in == null) {
             throw new IllegalArgumentException("Compressor name and stream must not be null.");
         }
-
         try {
-
             if (GZIP.equalsIgnoreCase(name)) {
                 return new GzipCompressorInputStream(in, actualDecompressConcatenated);
             }
-
             if (BZIP2.equalsIgnoreCase(name)) {
                 return new BZip2CompressorInputStream(in, actualDecompressConcatenated);
             }
-
             if (BROTLI.equalsIgnoreCase(name)) {
                 if (!BrotliUtils.isBrotliCompressionAvailable()) {
                     throw new CompressorException("Brotli compression is not available." + YOU_NEED_BROTLI_DEC);
                 }
                 return new BrotliCompressorInputStream(in);
             }
-
             if (XZ.equalsIgnoreCase(name)) {
                 if (!XZUtils.isXZCompressionAvailable()) {
                     throw new CompressorException("XZ compression is not available." + YOU_NEED_XZ_JAVA);
                 }
                 return new XZCompressorInputStream(in, actualDecompressConcatenated, memoryLimitInKb);
             }
-
             if (ZSTANDARD.equalsIgnoreCase(name)) {
                 if (!ZstdUtils.isZstdCompressionAvailable()) {
                     throw new CompressorException("Zstandard compression is not available." + YOU_NEED_ZSTD_JNI);
                 }
                 return new ZstdCompressorInputStream(in);
             }
-
             if (LZMA.equalsIgnoreCase(name)) {
                 if (!LZMAUtils.isLZMACompressionAvailable()) {
                     throw new CompressorException("LZMA compression is not available" + YOU_NEED_XZ_JAVA);
                 }
                 return new LZMACompressorInputStream(in, memoryLimitInKb);
             }
-
             if (PACK200.equalsIgnoreCase(name)) {
                 return new Pack200CompressorInputStream(in);
             }
-
             if (SNAPPY_RAW.equalsIgnoreCase(name)) {
                 return new SnappyCompressorInputStream(in);
             }
-
             if (SNAPPY_FRAMED.equalsIgnoreCase(name)) {
                 return new FramedSnappyCompressorInputStream(in);
             }
-
             if (Z.equalsIgnoreCase(name)) {
                 return new ZCompressorInputStream(in, memoryLimitInKb);
             }
-
             if (DEFLATE.equalsIgnoreCase(name)) {
                 return new DeflateCompressorInputStream(in);
             }
-
             if (DEFLATE64.equalsIgnoreCase(name)) {
                 return new Deflate64CompressorInputStream(in);
             }
-
             if (LZ4_BLOCK.equalsIgnoreCase(name)) {
                 return new BlockLZ4CompressorInputStream(in);
             }
-
             if (LZ4_FRAMED.equalsIgnoreCase(name)) {
                 return new FramedLZ4CompressorInputStream(in, actualDecompressConcatenated);
             }
@@ -611,7 +582,6 @@ public class CompressorStreamFactory implements CompressorStreamProvider {
         if (compressorStreamProvider != null) {
             return compressorStreamProvider.createCompressorInputStream(name, in, actualDecompressConcatenated);
         }
-
         throw new CompressorException("Compressor: " + name + " not found.");
     }
 
@@ -626,49 +596,38 @@ public class CompressorStreamFactory implements CompressorStreamProvider {
      * @throws IllegalArgumentException if the archiver name or stream is null
      */
     @Override
-    public CompressorOutputStream createCompressorOutputStream(final String name, final OutputStream out) throws CompressorException {
+    public CompressorOutputStream<?> createCompressorOutputStream(final String name, final OutputStream out) throws CompressorException {
         if (name == null || out == null) {
             throw new IllegalArgumentException("Compressor name and stream must not be null.");
         }
-
         try {
-
             if (GZIP.equalsIgnoreCase(name)) {
                 return new GzipCompressorOutputStream(out);
             }
-
             if (BZIP2.equalsIgnoreCase(name)) {
                 return new BZip2CompressorOutputStream(out);
             }
-
             if (XZ.equalsIgnoreCase(name)) {
                 return new XZCompressorOutputStream(out);
             }
-
             if (PACK200.equalsIgnoreCase(name)) {
                 return new Pack200CompressorOutputStream(out);
             }
-
             if (LZMA.equalsIgnoreCase(name)) {
                 return new LZMACompressorOutputStream(out);
             }
-
             if (DEFLATE.equalsIgnoreCase(name)) {
                 return new DeflateCompressorOutputStream(out);
             }
-
             if (SNAPPY_FRAMED.equalsIgnoreCase(name)) {
                 return new FramedSnappyCompressorOutputStream(out);
             }
-
             if (LZ4_BLOCK.equalsIgnoreCase(name)) {
                 return new BlockLZ4CompressorOutputStream(out);
             }
-
             if (LZ4_FRAMED.equalsIgnoreCase(name)) {
                 return new FramedLZ4CompressorOutputStream(out);
             }
-
             if (ZSTANDARD.equalsIgnoreCase(name)) {
                 return new ZstdCompressorOutputStream(out);
             }
@@ -702,7 +661,7 @@ public class CompressorStreamFactory implements CompressorStreamProvider {
     }
 
     public Boolean getDecompressUntilEOF() {
-        return decompressUntilEOF;
+        return decompressUntilEof;
     }
 
     @Override
@@ -730,7 +689,7 @@ public class CompressorStreamFactory implements CompressorStreamProvider {
      */
     @Deprecated
     public void setDecompressConcatenated(final boolean decompressConcatenated) {
-        if (this.decompressUntilEOF != null) {
+        if (this.decompressUntilEof != null) {
             throw new IllegalStateException("Cannot override the setting defined by the constructor");
         }
         this.decompressConcatenated = decompressConcatenated;

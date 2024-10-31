@@ -26,7 +26,7 @@ import java.util.Map.Entry;
 import org.objectweb.asm.Attribute;
 
 /**
- * Utility class to manage the various options available for pack200.
+ * Manages the various options available for pack200.
  */
 public class PackingOptions {
 
@@ -90,14 +90,19 @@ public class PackingOptions {
                 }
                 // if no attribute is found, add a new attribute
                 if (!prototypeExists) {
-                    if (ERROR.equals(action)) {
+                    switch (action) {
+                    case ERROR:
                         newAttribute = new NewAttribute.ErrorAttribute(name, tag);
-                    } else if (STRIP.equals(action)) {
+                        break;
+                    case STRIP:
                         newAttribute = new NewAttribute.StripAttribute(name, tag);
-                    } else if (PASS.equals(action)) {
+                        break;
+                    case PASS:
                         newAttribute = new NewAttribute.PassAttribute(name, tag);
-                    } else {
+                        break;
+                    default:
                         newAttribute = new NewAttribute(name, action, tag);
+                        break;
                     }
                     prototypes.add(newAttribute);
                 }
@@ -110,14 +115,13 @@ public class PackingOptions {
      *
      * @param passFileName the file name
      */
-    public void addPassFile(String passFileName) {
+    public void addPassFile(final String passFileName) {
         String fileSeparator = FileSystems.getDefault().getSeparator();
         if (fileSeparator.equals("\\")) {
             // Need to escape backslashes for replaceAll(), which uses regex
             fileSeparator += "\\";
         }
-        passFileName = passFileName.replaceAll(fileSeparator, "/");
-        passFiles.add(passFileName);
+        passFiles.add(passFileName.replaceAll(fileSeparator, "/"));
     }
 
     public String getDeflateHint() {
@@ -261,7 +265,7 @@ public class PackingOptions {
     /**
      * Sets the segment limit (equivalent to -S command line option)
      *
-     * @param segmentLimit - the limit in bytes
+     * @param segmentLimit   the limit in bytes
      */
     public void setSegmentLimit(final long segmentLimit) {
         this.segmentLimit = segmentLimit;
@@ -280,7 +284,7 @@ public class PackingOptions {
     /**
      * Sets the compressor behavior when an unknown attribute is encountered.
      *
-     * @param unknownAttributeAction - the action to perform
+     * @param unknownAttributeAction   the action to perform
      */
     public void setUnknownAttributeAction(final String unknownAttributeAction) {
         this.unknownAttributeAction = unknownAttributeAction;

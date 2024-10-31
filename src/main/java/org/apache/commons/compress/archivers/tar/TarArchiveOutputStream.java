@@ -32,6 +32,7 @@ import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.attribute.FileTime;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -41,8 +42,8 @@ import org.apache.commons.compress.archivers.zip.ZipEncodingHelper;
 import org.apache.commons.compress.utils.FixedLengthBlockOutputStream;
 import org.apache.commons.compress.utils.TimeUtils;
 import org.apache.commons.io.Charsets;
+import org.apache.commons.io.file.attribute.FileTimes;
 import org.apache.commons.io.output.CountingOutputStream;
-import org.apache.commons.lang3.ArrayFill;
 
 /**
  * The TarOutputStream writes a UNIX tar archive as an OutputStream. Methods are provided to put entries, and then write their contents by writing to this
@@ -108,20 +109,10 @@ public class TarArchiveOutputStream extends ArchiveOutputStream<TarArchiveEntry>
 
     private final int recordsPerBlock;
 
-    private boolean closed;
-
     /**
      * Indicates if putArchiveEntry has been called without closeArchiveEntry
      */
-
     private boolean haveUnclosedEntry;
-
-    /**
-     * indicates if this archive is finished
-     */
-    private boolean finished;
-
-    private final FixedLengthBlockOutputStream out;
 
     private final CountingOutputStream countingOut;
 
@@ -198,6 +189,7 @@ public class TarArchiveOutputStream extends ArchiveOutputStream<TarArchiveEntry>
      * @since 1.4
      */
     public TarArchiveOutputStream(final OutputStream os, final int blockSize, final String encoding) {
+        super(os);
         final int realBlockSize;
         if (BLOCK_SIZE_UNSPECIFIED == blockSize) {
             realBlockSize = RECORD_SIZE;
@@ -208,7 +200,7 @@ public class TarArchiveOutputStream extends ArchiveOutputStream<TarArchiveEntry>
         if (realBlockSize <= 0 || realBlockSize % RECORD_SIZE != 0) {
             throw new IllegalArgumentException("Block size must be a multiple of 512 bytes. Attempt to use set size of " + blockSize);
         }
-        out = new FixedLengthBlockOutputStream(countingOut = new CountingOutputStream(os), RECORD_SIZE);
+        this.out = new FixedLengthBlockOutputStream(countingOut = new CountingOutputStream(os), RECORD_SIZE);
         this.charsetName = Charsets.toCharset(encoding).name();
         this.zipEncoding = ZipEncodingHelper.getZipEncoding(encoding);
 
@@ -299,13 +291,12 @@ public class TarArchiveOutputStream extends ArchiveOutputStream<TarArchiveEntry>
     @Override
     public void close() throws IOException {
         try {
-            if (!finished) {
+            if (!isFinished()) {
                 finish();
             }
         } finally {
-            if (!closed) {
-                out.close();
-                closed = true;
+            if (!isClosed()) {
+                super.close();
             }
         }
     }
@@ -319,13 +310,11 @@ public class TarArchiveOutputStream extends ArchiveOutputStream<TarArchiveEntry>
      */
     @Override
     public void closeArchiveEntry() throws IOException {
-        if (finished) {
-            throw new IOException("Stream has already been finished");
-        }
+        checkFinished();
         if (!haveUnclosedEntry) {
             throw new IOException("No current entry to close");
         }
-        out.flushBlock();
+        ((FixedLengthBlockOutputStream) out).flushBlock();
         if (currBytes < currSize) {
             throw new IOException(
                     "Entry '" + currName + "' closed at '" + currBytes + "' before the '" + currSize + "' bytes specified in the header were written");
@@ -340,17 +329,13 @@ public class TarArchiveOutputStream extends ArchiveOutputStream<TarArchiveEntry>
 
     @Override
     public TarArchiveEntry createArchiveEntry(final File inputFile, final String entryName) throws IOException {
-        if (finished) {
-            throw new IOException("Stream has already been finished");
-        }
+        checkFinished();
         return new TarArchiveEntry(inputFile, entryName);
     }
 
     @Override
     public TarArchiveEntry createArchiveEntry(final Path inputPath, final String entryName, final LinkOption... options) throws IOException {
-        if (finished) {
-            throw new IOException("Stream has already been finished");
-        }
+        checkFinished();
         return new TarArchiveEntry(inputPath, entryName, options);
     }
 
@@ -411,10 +396,7 @@ public class TarArchiveOutputStream extends ArchiveOutputStream<TarArchiveEntry>
      */
     @Override
     public void finish() throws IOException {
-        if (finished) {
-            throw new IOException("This archive has already been finished");
-        }
-
+        checkFinished();
         if (haveUnclosedEntry) {
             throw new IOException("This archive contains unclosed entries.");
         }
@@ -422,12 +404,7 @@ public class TarArchiveOutputStream extends ArchiveOutputStream<TarArchiveEntry>
         writeEOFRecord();
         padAsNeeded();
         out.flush();
-        finished = true;
-    }
-
-    @Override
-    public void flush() throws IOException {
-        out.flush();
+        super.finish();
     }
 
     @Override
@@ -528,9 +505,7 @@ public class TarArchiveOutputStream extends ArchiveOutputStream<TarArchiveEntry>
      */
     @Override
     public void putArchiveEntry(final TarArchiveEntry archiveEntry) throws IOException {
-        if (finished) {
-            throw new IOException("Stream has already been finished");
-        }
+        checkFinished();
         if (archiveEntry.isGlobalPaxHeader()) {
             final byte[] data = encodeExtendedPaxHeadersContents(archiveEntry.getExtraPaxHeaders());
             archiveEntry.setSize(data.length);
@@ -645,7 +620,7 @@ public class TarArchiveOutputStream extends ArchiveOutputStream<TarArchiveEntry>
         if (fromModTimeSeconds < 0 || fromModTimeSeconds > TarConstants.MAXSIZE) {
             fromModTimeSeconds = 0;
         }
-        to.setLastModifiedTime(TimeUtils.unixTimeToFileTime(fromModTimeSeconds));
+        to.setLastModifiedTime(FileTimes.fromUnixTime(fromModTimeSeconds));
     }
 
     /**
@@ -674,7 +649,8 @@ public class TarArchiveOutputStream extends ArchiveOutputStream<TarArchiveEntry>
      * Writes an EOF (end of archive) record to the tar archive. An EOF record consists of a record of all zeros.
      */
     private void writeEOFRecord() throws IOException {
-        writeRecord(ArrayFill.fill(recordBuf, (byte) 0));
+        Arrays.fill(recordBuf, (byte) 0);
+        writeRecord(recordBuf);
     }
 
     /**

@@ -49,6 +49,16 @@ public class FileRandomAccessOutputStreamTest extends AbstractTempDirTest {
     }
 
     @Test
+    public void testClose() throws IOException {
+        final Path file = newTempPath("testChannel");
+        try (FileRandomAccessOutputStream stream = new FileRandomAccessOutputStream(file)) {
+            assertNotNull(stream.channel());
+            stream.close();
+            stream.close();
+        }
+    }
+
+    @Test
     public void testWrite() throws IOException {
         final FileChannel channel = mock(FileChannel.class);
         final FileRandomAccessOutputStream stream = new FileRandomAccessOutputStream(channel);
@@ -62,7 +72,6 @@ public class FileRandomAccessOutputStreamTest extends AbstractTempDirTest {
         stream.write("hello".getBytes(StandardCharsets.UTF_8));
         stream.write("world\n".getBytes(StandardCharsets.UTF_8));
         verify(channel, times(2)).write((ByteBuffer) any());
-
         assertEquals(11, stream.position());
     }
 

@@ -19,6 +19,7 @@
 package org.apache.commons.compress.archivers;
 
 import java.io.File;
+import java.io.FilterOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.file.LinkOption;
@@ -48,7 +49,7 @@ import java.nio.file.Path;
  *
  * @param <E> The type of {@link ArchiveEntry} consumed.
  */
-public abstract class ArchiveOutputStream<E extends ArchiveEntry> extends OutputStream {
+public abstract class ArchiveOutputStream<E extends ArchiveEntry> extends FilterOutputStream {
 
     static final int BYTE_MASK = 0xFF;
 
@@ -57,6 +58,37 @@ public abstract class ArchiveOutputStream<E extends ArchiveEntry> extends Output
 
     /** Holds the number of bytes written to this stream. */
     private long bytesWritten;
+
+    /**
+     * Whether this instance was successfully closed.
+     */
+    private boolean closed;
+
+    /**
+     * Whether this instance was successfully finished.
+     */
+    private boolean finished;
+
+    /**
+     * Constructs a new instance without a backing OutputStream.
+     * <p>
+     * You must initialize {@code this.out} after construction.
+     * </p>
+     */
+    public ArchiveOutputStream() {
+        super(null);
+    }
+
+    /**
+     * Constructs a new instance with the given backing OutputStream.
+     *
+     * @param out the underlying output stream to be assigned to the field {@code this.out} for later use, or {@code null} if this instance is to be created
+     *            without an underlying stream.
+     * @since 1.27.0.
+     */
+    public ArchiveOutputStream(final OutputStream out) {
+        super(out);
+    }
 
     /**
      * Whether this stream is able to write the given entry.
@@ -71,6 +103,36 @@ public abstract class ArchiveOutputStream<E extends ArchiveEntry> extends Output
      */
     public boolean canWriteEntryData(final ArchiveEntry archiveEntry) {
         return true;
+    }
+
+    /**
+     * Throws an {@link IOException} if this instance is already finished.
+     *
+     * @throws IOException if this instance is already finished.
+     * @since 1.27.0
+     */
+    protected void checkFinished() throws IOException {
+        if (isFinished()) {
+            throw new IOException("Stream has already been finished.");
+        }
+    }
+
+    /**
+     * Check to make sure that this stream has not been closed
+     *
+     * @throws IOException if the stream is already closed
+     * @since 1.27.0
+     */
+    protected void checkOpen() throws IOException {
+        if (isClosed()) {
+            throw new IOException("Stream closed");
+        }
+    }
+
+    @Override
+    public void close() throws IOException {
+        super.close();
+        closed = true;
     }
 
     /**
@@ -140,9 +202,11 @@ public abstract class ArchiveOutputStream<E extends ArchiveEntry> extends Output
     /**
      * Finishes the addition of entries to this stream, without closing it. Additional data can be written, if the format supports it.
      *
-     * @throws IOException if the user forgets to close the entry.
+     * @throws IOException Maybe thrown by subclasses if the user forgets to close the entry.
      */
-    public abstract void finish() throws IOException;
+    public void finish() throws IOException {
+        finished = true;
+    }
 
     /**
      * Gets the current number of bytes written to this stream.
@@ -163,6 +227,26 @@ public abstract class ArchiveOutputStream<E extends ArchiveEntry> extends Output
     @Deprecated
     public int getCount() {
         return (int) bytesWritten;
+    }
+
+    /**
+     * Tests whether this instance was successfully closed.
+     *
+     * @return whether this instance was successfully closed.
+     * @since 1.27.0
+     */
+    protected boolean isClosed() {
+        return closed;
+    }
+
+    /**
+     * Tests whether this instance was successfully finished.
+     *
+     * @return whether this instance was successfully finished.
+     * @since 1.27.0
+     */
+    protected boolean isFinished() {
+        return finished;
     }
 
     /**

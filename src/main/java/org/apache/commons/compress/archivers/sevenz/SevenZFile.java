@@ -48,14 +48,14 @@ import java.util.zip.CRC32;
 import java.util.zip.CheckedInputStream;
 
 import org.apache.commons.compress.MemoryLimitException;
-import org.apache.commons.compress.utils.BoundedInputStream;
 import org.apache.commons.compress.utils.ByteUtils;
-import org.apache.commons.compress.utils.CRC32VerifyingInputStream;
 import org.apache.commons.compress.utils.IOUtils;
 import org.apache.commons.compress.utils.InputStreamStatistics;
 import org.apache.commons.compress.utils.SeekableInMemoryByteChannel;
 import org.apache.commons.io.build.AbstractOrigin.ByteArrayOrigin;
 import org.apache.commons.io.build.AbstractStreamBuilder;
+import org.apache.commons.io.input.BoundedInputStream;
+import org.apache.commons.io.input.ChecksumInputStream;
 
 /**
  * Reads a 7z file, using SeekableByteChannel under the covers.
@@ -198,7 +198,7 @@ public class SevenZFile implements Closeable {
          * Sets the default name.
          *
          * @param defaultName the default name.
-         * @return this.
+         * @return {@code this} instance.
          */
         public Builder setDefaultName(final String defaultName) {
             this.defaultName = defaultName;
@@ -212,7 +212,7 @@ public class SevenZFile implements Closeable {
          * </p>
          *
          * @param maxMemoryLimitKb the max memory limit in kilobytes.
-         * @return this.
+         * @return {@code this} instance.
          */
         public Builder setMaxMemoryLimitKb(final int maxMemoryLimitKb) {
             this.maxMemoryLimitKb = maxMemoryLimitKb;
@@ -223,7 +223,7 @@ public class SevenZFile implements Closeable {
          * Sets the password.
          *
          * @param password the password.
-         * @return this.
+         * @return {@code this} instance.
          */
         public Builder setPassword(final byte[] password) {
             this.password = password != null ? password.clone() : null;
@@ -234,7 +234,7 @@ public class SevenZFile implements Closeable {
          * Sets the password.
          *
          * @param password the password.
-         * @return this.
+         * @return {@code this} instance.
          */
         public Builder setPassword(final char[] password) {
             this.password = password != null ? AES256SHA256Decoder.utf16Decode(password.clone()) : null;
@@ -245,7 +245,7 @@ public class SevenZFile implements Closeable {
          * Sets the password.
          *
          * @param password the password.
-         * @return this.
+         * @return {@code this} instance.
          */
         public Builder setPassword(final String password) {
             this.password = password != null ? AES256SHA256Decoder.utf16Decode(password.toCharArray()) : null;
@@ -256,7 +256,7 @@ public class SevenZFile implements Closeable {
          * Sets the input channel.
          *
          * @param seekableByteChannel the input channel.
-         * @return this.
+         * @return {@code this} instance.
          */
         public Builder setSeekableByteChannel(final SeekableByteChannel seekableByteChannel) {
             this.seekableByteChannel = seekableByteChannel;
@@ -272,7 +272,7 @@ public class SevenZFile implements Closeable {
          * </p>
          *
          * @param tryToRecoverBrokenArchives whether {@link SevenZFile} will try to recover broken archives where the CRC of the file's metadata is 0.
-         * @return this.
+         * @return {@code this} instance.
          */
         public Builder setTryToRecoverBrokenArchives(final boolean tryToRecoverBrokenArchives) {
             this.tryToRecoverBrokenArchives = tryToRecoverBrokenArchives;
@@ -283,7 +283,7 @@ public class SevenZFile implements Closeable {
          * Sets whether entries without a name should get their names set to the archive's default file name.
          *
          * @param useDefaultNameForUnnamedEntries whether entries without a name should get their names set to the archive's default file name.
-         * @return this.
+         * @return {@code this} instance.
          */
         public Builder setUseDefaultNameForUnnamedEntries(final boolean useDefaultNameForUnnamedEntries) {
             this.useDefaultNameForUnnamedEntries = useDefaultNameForUnnamedEntries;
@@ -749,7 +749,14 @@ public class SevenZFile implements Closeable {
         }
         entry.setContentMethods(methods);
         if (folder.hasCrc) {
-            return new CRC32VerifyingInputStream(inputStreamStack, folder.getUnpackSize(), folder.crc);
+            // @formatter:off
+            return ChecksumInputStream.builder()
+                    .setChecksum(new CRC32())
+                    .setInputStream(inputStreamStack)
+                    .setCountThreshold(folder.getUnpackSize())
+                    .setExpectedChecksumValue(folder.crc)
+                    .get();
+            // @formatter:on
         }
         return inputStreamStack;
     }
@@ -816,9 +823,19 @@ public class SevenZFile implements Closeable {
             return;
         }
 
-        InputStream fileStream = new BoundedInputStream(currentFolderInputStream, file.getSize());
+        InputStream fileStream = BoundedInputStream.builder()
+                .setInputStream(currentFolderInputStream)
+                .setMaxCount(file.getSize())
+                .setPropagateClose(false)
+                .get();
         if (file.getHasCrc()) {
-            fileStream = new CRC32VerifyingInputStream(fileStream, file.getSize(), file.getCrcValue());
+            // @formatter:off
+            fileStream = ChecksumInputStream.builder()
+                    .setChecksum(new CRC32())
+                    .setInputStream(fileStream)
+                    .setExpectedChecksumValue(file.getCrcValue())
+                    .get();
+            // @formatter:on
         }
 
         deferredBlockStreams.add(fileStream);
@@ -903,17 +920,15 @@ public class SevenZFile implements Closeable {
         if (deferredBlockStreams.isEmpty()) {
             throw new IllegalStateException("No current 7z entry (call getNextEntry() first).");
         }
-
         while (deferredBlockStreams.size() > 1) {
             // In solid compression mode we need to decompress all leading folder'
             // streams to get access to an entry. We defer this until really needed
             // so that entire blocks can be skipped without wasting time for decompression.
             try (InputStream stream = deferredBlockStreams.remove(0)) {
-                org.apache.commons.io.IOUtils.skip(stream, Long.MAX_VALUE);
+                org.apache.commons.io.IOUtils.skip(stream, Long.MAX_VALUE, org.apache.commons.io.IOUtils::byteArray);
             }
             compressedBytesReadFromCurrentEntry = 0;
         }
-
         return deferredBlockStreams.get(0);
     }
 
@@ -971,15 +986,15 @@ public class SevenZFile implements Closeable {
      */
     public InputStream getInputStream(final SevenZArchiveEntry entry) throws IOException {
         int entryIndex = -1;
-        for (int i = 0; i < this.archive.files.length; i++) {
-            if (entry == this.archive.files[i]) {
+        for (int i = 0; i < archive.files.length; i++) {
+            if (entry == archive.files[i]) {
                 entryIndex = i;
                 break;
             }
         }
 
         if (entryIndex < 0) {
-            throw new IllegalArgumentException("Can not find " + entry.getName() + " in " + this.fileName);
+            throw new IllegalArgumentException("Can not find " + entry.getName() + " in " + fileName);
         }
 
         buildDecodingStream(entryIndex, true);
@@ -1040,13 +1055,10 @@ public class SevenZFile implements Closeable {
             final InputStream currentEntryInputStream = deferredBlockStreams.get(deferredBlockStreams.size() - 1);
             // get the bytes remaining to read, and compare it with the size of
             // the file to figure out if the file has been read
-            if (currentEntryInputStream instanceof CRC32VerifyingInputStream) {
-                hasCurrentEntryBeenRead = ((CRC32VerifyingInputStream) currentEntryInputStream).getBytesRemaining() != archive.files[currentEntryIndex]
-                        .getSize();
-            }
-
-            if (currentEntryInputStream instanceof BoundedInputStream) {
-                hasCurrentEntryBeenRead = ((BoundedInputStream) currentEntryInputStream).getBytesRemaining() != archive.files[currentEntryIndex].getSize();
+            if (currentEntryInputStream instanceof ChecksumInputStream) {
+                hasCurrentEntryBeenRead = ((ChecksumInputStream) currentEntryInputStream).getRemaining() != archive.files[currentEntryIndex].getSize();
+            } else if (currentEntryInputStream instanceof BoundedInputStream) {
+                hasCurrentEntryBeenRead = ((BoundedInputStream) currentEntryInputStream).getRemaining() != archive.files[currentEntryIndex].getSize();
             }
         }
         return hasCurrentEntryBeenRead;
@@ -1146,12 +1158,12 @@ public class SevenZFile implements Closeable {
 
     private void readArchiveProperties(final ByteBuffer input) throws IOException {
         // FIXME: the reference implementation just throws them away?
-        int nid = getUnsignedByte(input);
+        long nid = readUint64(input);
         while (nid != NID.kEnd) {
             final long propertySize = readUint64(input);
             final byte[] property = new byte[(int) propertySize];
             get(input, property);
-            nid = getUnsignedByte(input);
+            nid = readUint64(input);
         }
     }
 
@@ -1201,7 +1213,14 @@ public class SevenZFile implements Closeable {
                     folder.getUnpackSizeForCoder(coder), coder, password, maxMemoryLimitKb);
         }
         if (folder.hasCrc) {
-            inputStreamStack = new CRC32VerifyingInputStream(inputStreamStack, folder.getUnpackSize(), folder.crc);
+            // @formatter:off
+            inputStreamStack = ChecksumInputStream.builder()
+                    .setChecksum(new CRC32())
+                    .setInputStream(inputStreamStack)
+                    .setCountThreshold(folder.getUnpackSize())
+                    .setExpectedChecksumValue(folder.crc)
+                    .get();
+            // @formatter:on
         }
         final int unpackSize = assertFitsIntoNonNegativeInt("unpackSize", folder.getUnpackSize());
         final byte[] nextHeader = IOUtils.readRange(inputStreamStack, unpackSize);
@@ -1528,16 +1547,21 @@ public class SevenZFile implements Closeable {
                     archive.packCrcs[i] = 0xffffFFFFL & getInt(header);
                 }
             }
-
-            nid = getUnsignedByte(header);
+            // read one more
+            getUnsignedByte(header);
         }
     }
 
     private StartHeader readStartHeader(final long startHeaderCrc) throws IOException {
-        // using Stream rather than ByteBuffer for the benefit of the
-        // built-in CRC check
-        try (DataInputStream dataInputStream = new DataInputStream(
-                new CRC32VerifyingInputStream(new BoundedSeekableByteChannelInputStream(channel, 20), 20, startHeaderCrc))) {
+        // using Stream rather than ByteBuffer for the benefit of the built-in CRC check
+        try (DataInputStream dataInputStream = new DataInputStream(ChecksumInputStream.builder()
+                // @formatter:off
+                .setChecksum(new CRC32())
+                .setInputStream(new BoundedSeekableByteChannelInputStream(channel, 20))
+                .setCountThreshold(20L)
+                .setExpectedChecksumValue(startHeaderCrc)
+                .get())) {
+                // @formatter:on
             final long nextHeaderOffset = Long.reverseBytes(dataInputStream.readLong());
             if (nextHeaderOffset < 0 || nextHeaderOffset + SIGNATURE_HEADER_SIZE > channel.size()) {
                 throw new IOException("nextHeaderOffset is out of bounds");
@@ -1741,13 +1765,13 @@ public class SevenZFile implements Closeable {
     }
 
     private void sanityCheckArchiveProperties(final ByteBuffer header) throws IOException {
-        int nid = getUnsignedByte(header);
+        long nid = readUint64(header);
         while (nid != NID.kEnd) {
             final int propertySize = assertFitsIntoNonNegativeInt("propertySize", readUint64(header));
             if (skipBytesFully(header, propertySize) < propertySize) {
                 throw new IOException("invalid property size");
             }
-            nid = getUnsignedByte(header);
+            nid = readUint64(header);
         }
     }
 
@@ -2168,9 +2192,20 @@ public class SevenZFile implements Closeable {
 
         for (int i = filesToSkipStartIndex; i < entryIndex; i++) {
             final SevenZArchiveEntry fileToSkip = archive.files[i];
-            InputStream fileStreamToSkip = new BoundedInputStream(currentFolderInputStream, fileToSkip.getSize());
+            InputStream fileStreamToSkip = BoundedInputStream.builder()
+                    .setInputStream(currentFolderInputStream)
+                    .setMaxCount(fileToSkip.getSize())
+                    .setPropagateClose(false)
+                    .get();
             if (fileToSkip.getHasCrc()) {
-                fileStreamToSkip = new CRC32VerifyingInputStream(fileStreamToSkip, fileToSkip.getSize(), fileToSkip.getCrcValue());
+                // @formatter:off
+                fileStreamToSkip = ChecksumInputStream.builder()
+                        .setChecksum(new CRC32())
+                        .setInputStream(fileStreamToSkip)
+                        .setCountThreshold(fileToSkip.getSize())
+                        .setExpectedChecksumValue(fileToSkip.getCrcValue())
+                        .get();
+                // @formatter:on
             }
             deferredBlockStreams.add(fileStreamToSkip);
 
@@ -2219,7 +2254,7 @@ public class SevenZFile implements Closeable {
                     if (result.packSizes.length > 0 && result.files.length > 0) {
                         return result;
                     }
-                } catch (final Exception ignore) {
+                } catch (final Exception ignored) {
                     // Wrong guess...
                 }
             }

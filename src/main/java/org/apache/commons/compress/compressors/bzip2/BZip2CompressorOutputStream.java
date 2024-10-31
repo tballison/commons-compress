@@ -23,6 +23,7 @@ import java.io.OutputStream;
 import java.util.Arrays;
 
 import org.apache.commons.compress.compressors.CompressorOutputStream;
+import org.apache.commons.io.IOUtils;
 
 /**
  * An output stream that compresses into the BZip2 format into another stream.
@@ -126,7 +127,7 @@ import org.apache.commons.compress.compressors.CompressorOutputStream;
  *
  * @NotThreadSafe
  */
-public class BZip2CompressorOutputStream extends CompressorOutputStream implements BZip2Constants {
+public class BZip2CompressorOutputStream extends CompressorOutputStream<OutputStream> implements BZip2Constants {
 
     static final class Data {
 
@@ -180,7 +181,7 @@ public class BZip2CompressorOutputStream extends CompressorOutputStream implemen
         int origPtr;
 
         Data(final int blockSize100k) {
-            final int n = blockSize100k * BZip2Constants.BASEBLOCKSIZE;
+            final int n = blockSize100k * BASEBLOCKSIZE;
             this.block = new byte[n + 1 + NUM_OVERSHOOT_BYTES];
             this.fmap = new int[n];
             this.sfmap = new char[2 * n];
@@ -397,8 +398,6 @@ public class BZip2CompressorOutputStream extends CompressorOutputStream implemen
 
     private BlockSort blockSorter;
 
-    private OutputStream out;
-
     private volatile boolean closed;
 
     /**
@@ -427,18 +426,16 @@ public class BZip2CompressorOutputStream extends CompressorOutputStream implemen
      * @see #MAX_BLOCKSIZE
      */
     public BZip2CompressorOutputStream(final OutputStream out, final int blockSize) throws IOException {
+        super(out);
         if (blockSize < 1) {
             throw new IllegalArgumentException("blockSize(" + blockSize + ") < 1");
         }
         if (blockSize > 9) {
             throw new IllegalArgumentException("blockSize(" + blockSize + ") > 9");
         }
-
         this.blockSize100k = blockSize;
-        this.out = out;
-
         /* 20 is just a paranoia constant */
-        this.allowableBlockSize = this.blockSize100k * BZip2Constants.BASEBLOCKSIZE - 20;
+        this.allowableBlockSize = this.blockSize100k * BASEBLOCKSIZE - 20;
         init();
     }
 
@@ -481,11 +478,19 @@ public class BZip2CompressorOutputStream extends CompressorOutputStream implemen
         this.bsLive = bsLiveShadow + n;
     }
 
+    private void checkClosed() throws IOException {
+        if (closed) {
+            throw new IOException("Stream closed");
+        }
+    }
+
     @Override
     public void close() throws IOException {
         if (!closed) {
-            try (OutputStream outShadow = this.out) {
+            try {
                 finish();
+            } finally {
+                IOUtils.close(out);
             }
         }
     }
@@ -519,7 +524,7 @@ public class BZip2CompressorOutputStream extends CompressorOutputStream implemen
         /* Now the block's CRC, so it is in a known place. */
         bsPutInt(blockCRC);
 
-        /* Now a single bit indicating no randomisation. */
+        /* Now a single bit indicating no randomization. */
         bsW(1, 0);
 
         /* Finally, block's contents proper. */
@@ -553,7 +558,6 @@ public class BZip2CompressorOutputStream extends CompressorOutputStream implemen
                 endBlock();
                 endCompression();
             } finally {
-                this.out = null;
                 this.blockSorter = null;
                 this.data = null;
             }
@@ -562,9 +566,8 @@ public class BZip2CompressorOutputStream extends CompressorOutputStream implemen
 
     @Override
     public void flush() throws IOException {
-        final OutputStream outShadow = this.out;
-        if (outShadow != null) {
-            outShadow.flush();
+        if (out != null) {
+            super.flush();
         }
     }
 
@@ -1167,10 +1170,7 @@ public class BZip2CompressorOutputStream extends CompressorOutputStream implemen
         if (offs + len > buf.length) {
             throw new IndexOutOfBoundsException("offs(" + offs + ") + len(" + len + ") > buf.length(" + buf.length + ").");
         }
-        if (closed) {
-            throw new IOException("Stream closed");
-        }
-
+        checkClosed();
         for (final int hi = offs + len; offs < hi;) {
             write0(buf[offs++]);
         }
@@ -1178,9 +1178,7 @@ public class BZip2CompressorOutputStream extends CompressorOutputStream implemen
 
     @Override
     public void write(final int b) throws IOException {
-        if (closed) {
-            throw new IOException("Closed");
-        }
+        checkClosed();
         write0(b);
     }
 

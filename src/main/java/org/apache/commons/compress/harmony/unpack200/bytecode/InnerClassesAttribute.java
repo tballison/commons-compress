@@ -113,12 +113,6 @@ public class InnerClassesAttribute extends Attribute {
     }
 
     @Override
-    protected void doWrite(final DataOutputStream dos) throws IOException {
-        // Hack so I can see what's being written.
-        super.doWrite(dos);
-    }
-
-    @Override
     public boolean equals(final Object obj) {
         if (this == obj) {
             return true;
@@ -147,7 +141,7 @@ public class InnerClassesAttribute extends Attribute {
 
     @Override
     protected ClassFileEntry[] getNestedClassFileEntries() {
-        return nestedClassFileEntries.toArray(ClassFileEntry.NONE);
+        return nestedClassFileEntries.toArray(NONE);
     }
 
     @Override

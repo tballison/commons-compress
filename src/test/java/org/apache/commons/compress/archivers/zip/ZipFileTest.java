@@ -58,7 +58,6 @@ import org.apache.commons.compress.utils.ByteUtils;
 import org.apache.commons.compress.utils.SeekableInMemoryByteChannel;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.function.IORunnable;
-import org.apache.commons.lang3.ArrayFill;
 import org.apache.commons.lang3.SystemUtils;
 import org.junit.Assume;
 import org.junit.jupiter.api.AfterEach;
@@ -820,15 +819,17 @@ public class ZipFileTest extends AbstractTest {
     }
 
     @Test
-    public void testSetLevelTooBigForZipArchiveOutputStream() {
-        final ZipArchiveOutputStream fixture = new ZipArchiveOutputStream(new ByteArrayOutputStream());
-        assertThrows(IllegalArgumentException.class, () -> fixture.setLevel(Deflater.BEST_COMPRESSION + 1));
+    public void testSetLevelTooBigForZipArchiveOutputStream() throws IOException {
+        try (ZipArchiveOutputStream fixture = new ZipArchiveOutputStream(new ByteArrayOutputStream())) {
+            assertThrows(IllegalArgumentException.class, () -> fixture.setLevel(Deflater.BEST_COMPRESSION + 1));
+        }
     }
 
     @Test
-    public void testSetLevelTooSmallForZipArchiveOutputStream() {
-        final ZipArchiveOutputStream fixture = new ZipArchiveOutputStream(new ByteArrayOutputStream());
+    public void testSetLevelTooSmallForZipArchiveOutputStream() throws IOException {
+        try (ZipArchiveOutputStream fixture = new ZipArchiveOutputStream(new ByteArrayOutputStream())) {
         assertThrows(IllegalArgumentException.class, () -> fixture.setLevel(Deflater.DEFAULT_COMPRESSION - 1));
+        }
     }
 
     @Test
@@ -874,9 +875,11 @@ public class ZipFileTest extends AbstractTest {
 
     @Test
     public void testThrowsExceptionWhenWritingPreamble() throws IOException {
-        final ZipArchiveOutputStream outputStream = new ZipArchiveOutputStream(new ByteArrayOutputStream());
-        outputStream.putArchiveEntry(new ZipArchiveEntry());
-        assertThrows(IllegalStateException.class, () -> outputStream.writePreamble(ByteUtils.EMPTY_BYTE_ARRAY));
+        try (ZipArchiveOutputStream outputStream = new ZipArchiveOutputStream(new ByteArrayOutputStream())) {
+            outputStream.putArchiveEntry(new ZipArchiveEntry());
+            assertThrows(IllegalStateException.class, () -> outputStream.writePreamble(ByteUtils.EMPTY_BYTE_ARRAY));
+            outputStream.closeArchiveEntry();
+        }
     }
 
     @Test
@@ -940,7 +943,8 @@ public class ZipFileTest extends AbstractTest {
         zf = new ZipFile(archive);
         final ZipArchiveEntry ze = zf.getEntry("lots-of-as");
         assertEquals(42, ze.getSize());
-        final byte[] expected = ArrayFill.fill(new byte[42], (byte) 'a');
+        final byte[] expected = new byte[42];
+        Arrays.fill(expected, (byte) 'a');
         try (InputStream inputStream = zf.getInputStream(ze)) {
             assertArrayEquals(expected, IOUtils.toByteArray(inputStream));
         }
@@ -960,7 +964,6 @@ public class ZipFileTest extends AbstractTest {
     @Test
     public void testZipWithShortBeginningGarbage() throws IOException {
         final Path path = createTempPath("preamble", ".zip");
-
         try (OutputStream fos = Files.newOutputStream(path)) {
             fos.write("#!/usr/bin/unzip\n".getBytes(StandardCharsets.UTF_8));
             try (ZipArchiveOutputStream zos = new ZipArchiveOutputStream(fos)) {
@@ -971,12 +974,13 @@ public class ZipFileTest extends AbstractTest {
                 zos.closeArchiveEntry();
             }
         }
-
         try (ZipFile zipFile = ZipFile.builder().setPath(path).get()) {
             final ZipArchiveEntry entry = zipFile.getEntry("file-1.txt");
             assertEquals("file-1.txt", entry.getName());
-            final byte[] content = IOUtils.toByteArray(zipFile.getInputStream(entry));
-            assertArrayEquals("entry-content\n".getBytes(StandardCharsets.UTF_8), content);
+            try (InputStream inputStream = zipFile.getInputStream(entry)) {
+                final byte[] content = IOUtils.toByteArray(inputStream);
+                assertArrayEquals("entry-content\n".getBytes(StandardCharsets.UTF_8), content);
+            }
         }
     }
 

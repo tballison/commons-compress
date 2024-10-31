@@ -576,9 +576,7 @@ public final class ZipTest extends AbstractTest {
         // stream access
         try (InputStream fis = Files.newInputStream(input.toPath());
                 ArchiveInputStream<?> in = ArchiveStreamFactory.DEFAULT.createArchiveInputStream("zip", fis)) {
-            for (ArchiveEntry entry; (entry = in.getNextEntry()) != null;) {
-                readStream(in, entry, actualStatistics);
-            }
+            in.forEach(entry -> readStream(in, entry, actualStatistics));
         }
         // file access
         try (ZipFile zf = newZipFile(input)) {
@@ -740,6 +738,19 @@ public final class ZipTest extends AbstractTest {
         }
     }
 
+    @Test
+    public void testUnsupportedCompressionMethodInAddRaw() throws IOException {
+        final File file1 = createTempFile("unsupportedCompressionMethod.", ".zip");
+        try (ZipArchiveOutputStream zos = new ZipArchiveOutputStream(file1)) {
+            final ZipArchiveEntry archiveEntry = new ZipArchiveEntry("fred");
+            archiveEntry.setMethod(Integer.MAX_VALUE);
+            archiveEntry.setSize(3);
+            archiveEntry.setCompressedSize(3);
+            archiveEntry.setCrc(0);
+            zos.addRawArchiveEntry(archiveEntry, new ByteArrayInputStream("fud".getBytes()));
+        }
+    }
+
     /**
      * Archives 2 files and unarchives it again. If the file length of result and source is the same, it looks like the operations have worked
      *
@@ -767,13 +778,12 @@ public final class ZipTest extends AbstractTest {
         final List<File> results = new ArrayList<>();
         try (InputStream fileInputStream = Files.newInputStream(output.toPath())) {
             try (ArchiveInputStream<ZipArchiveEntry> archiveInputStream = ArchiveStreamFactory.DEFAULT.createArchiveInputStream("zip", fileInputStream)) {
-                ZipArchiveEntry entry;
-                while ((entry = archiveInputStream.getNextEntry()) != null) {
+                archiveInputStream.forEach(entry -> {
                     final File outfile = new File(tempResultDir.getCanonicalPath() + "/result/" + entry.getName());
                     outfile.getParentFile().mkdirs();
                     Files.copy(archiveInputStream, outfile.toPath());
                     results.add(outfile);
-                }
+                });
             }
         }
         assertEquals(results.size(), 2);

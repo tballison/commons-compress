@@ -93,11 +93,11 @@ public abstract class StreamCompressor implements Closeable {
         }
     }
 
-    /*
+    /**
      * Apparently Deflater.setInput gets slowed down a lot on Sun JVMs when it gets handed a huge buffer. See
      * https://issues.apache.org/bugzilla/show_bug.cgi?id=45396
      *
-     * Using a buffer size of 8 kB proved to be a good compromise
+     * Using a buffer size of {@value} bytes proved to be a good compromise
      */
     private static final int DEFLATER_BLOCK_SIZE = 8192;
     private static final int BUFFER_SIZE = 4096;
@@ -168,7 +168,7 @@ public abstract class StreamCompressor implements Closeable {
         return new SeekableByteChannelCompressor(deflater, os);
     }
 
-    private final Deflater def;
+    private final Deflater deflater;
 
     private final CRC32 crc = new CRC32();
 
@@ -183,23 +183,23 @@ public abstract class StreamCompressor implements Closeable {
     private final byte[] readerBuf = new byte[BUFFER_SIZE];
 
     StreamCompressor(final Deflater deflater) {
-        this.def = deflater;
+        this.deflater = deflater;
     }
 
     @Override
     public void close() throws IOException {
-        def.end();
+        deflater.end();
     }
 
     void deflate() throws IOException {
-        final int len = def.deflate(outputBuffer, 0, outputBuffer.length);
+        final int len = deflater.deflate(outputBuffer, 0, outputBuffer.length);
         if (len > 0) {
             writeCounted(outputBuffer, 0, len);
         }
     }
 
     /**
-     * Deflate the given source using the supplied compression method
+     * Deflates the given source using the supplied compression method
      *
      * @param source The source to compress
      * @param method The #ZipArchiveEntry compression method
@@ -219,14 +219,14 @@ public abstract class StreamCompressor implements Closeable {
     }
 
     private void deflateUntilInputIsNeeded() throws IOException {
-        while (!def.needsInput()) {
+        while (!deflater.needsInput()) {
             deflate();
         }
     }
 
     void flushDeflater() throws IOException {
-        def.finish();
-        while (!def.finished()) {
+        deflater.finish();
+        while (!deflater.finished()) {
             deflate();
         }
     }
@@ -241,7 +241,7 @@ public abstract class StreamCompressor implements Closeable {
     }
 
     /**
-     * The number of bytes written to the output for the last entry
+     * Gets the number of bytes written to the output for the last entry
      *
      * @return The number of bytes, never negative
      */
@@ -250,7 +250,7 @@ public abstract class StreamCompressor implements Closeable {
     }
 
     /**
-     * The crc32 of the last deflated file
+     * Gets the crc32 of the last deflated file
      *
      * @return the crc32
      */
@@ -260,7 +260,7 @@ public abstract class StreamCompressor implements Closeable {
     }
 
     /**
-     * The total number of bytes written to the output for all files
+     * Gets the total number of bytes written to the output for all files
      *
      * @return The number of bytes, never negative
      */
@@ -270,7 +270,7 @@ public abstract class StreamCompressor implements Closeable {
 
     void reset() {
         crc.reset();
-        def.reset();
+        deflater.reset();
         sourcePayloadLength = 0;
         writtenToOutputStreamForLastEntry = 0;
     }
@@ -308,19 +308,19 @@ public abstract class StreamCompressor implements Closeable {
     }
 
     private void writeDeflated(final byte[] b, final int offset, final int length) throws IOException {
-        if (length > 0 && !def.finished()) {
+        if (length > 0 && !deflater.finished()) {
             if (length <= DEFLATER_BLOCK_SIZE) {
-                def.setInput(b, offset, length);
+                deflater.setInput(b, offset, length);
                 deflateUntilInputIsNeeded();
             } else {
                 final int fullblocks = length / DEFLATER_BLOCK_SIZE;
                 for (int i = 0; i < fullblocks; i++) {
-                    def.setInput(b, offset + i * DEFLATER_BLOCK_SIZE, DEFLATER_BLOCK_SIZE);
+                    deflater.setInput(b, offset + i * DEFLATER_BLOCK_SIZE, DEFLATER_BLOCK_SIZE);
                     deflateUntilInputIsNeeded();
                 }
                 final int done = fullblocks * DEFLATER_BLOCK_SIZE;
                 if (done < length) {
-                    def.setInput(b, offset + done, length - done);
+                    deflater.setInput(b, offset + done, length - done);
                     deflateUntilInputIsNeeded();
                 }
             }

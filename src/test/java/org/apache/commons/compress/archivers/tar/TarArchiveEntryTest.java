@@ -44,12 +44,13 @@ import java.util.Random;
 
 import org.apache.commons.compress.AbstractTest;
 import org.apache.commons.compress.archivers.zip.ZipEncodingHelper;
+import org.apache.commons.lang3.SystemProperties;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledOnOs;
 
 public class TarArchiveEntryTest implements TarConstants {
 
-    private static final String OS = System.getProperty("os.name").toLowerCase(Locale.ENGLISH);
+    private static final String OS = SystemProperties.getOsName().toLowerCase(Locale.ROOT);
     private static final String ROOT = OS.startsWith("windows") || OS.startsWith("netware") ? "C:\\" : "/";
 
     private void assertGnuMagic(final TarArchiveEntry t) {
@@ -275,7 +276,7 @@ public class TarArchiveEntryTest implements TarConstants {
         for (final String name : headerNames) {
             for (final String value : testValues) {
                 final Exception exp = assertThrows(IllegalArgumentException.class, () -> entry.addPaxHeader(name, value));
-                assert exp.getCause().getMessage().startsWith("Corrupted PAX header. Time field value is invalid");
+                assertTrue(exp.getCause().getMessage().startsWith("Corrupted PAX header. Time field value is invalid"));
             }
         }
     }

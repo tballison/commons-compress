@@ -44,6 +44,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.zip.Inflater;
@@ -61,7 +62,7 @@ import org.apache.commons.io.Charsets;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.build.AbstractOrigin.ByteArrayOrigin;
 import org.apache.commons.io.build.AbstractStreamBuilder;
-import org.apache.commons.io.input.CountingInputStream;
+import org.apache.commons.io.input.BoundedInputStream;
 
 /**
  * Replacement for {@link java.util.zip.ZipFile}.
@@ -139,7 +140,6 @@ public class ZipFile implements Closeable {
             setCharsetDefault(DEFAULT_CHARSET);
         }
 
-        @SuppressWarnings("resource") // caller closes
         @Override
         public ZipFile get() throws IOException {
             final SeekableByteChannel actualChannel;
@@ -167,7 +167,7 @@ public class ZipFile implements Closeable {
          * Sets whether to ignore information stored inside the local file header.
          *
          * @param ignoreLocalFileHeader whether to ignore information stored inside.
-         * @return this.
+         * @return {@code this} instance.
          */
         public Builder setIgnoreLocalFileHeader(final boolean ignoreLocalFileHeader) {
             this.ignoreLocalFileHeader = ignoreLocalFileHeader;
@@ -179,7 +179,7 @@ public class ZipFile implements Closeable {
          *
          * @param maxNumberOfDisks max number of multi archive disks.
          *
-         * @return this.
+         * @return {@code this} instance.
          */
         public Builder setMaxNumberOfDisks(final long maxNumberOfDisks) {
             this.maxNumberOfDisks = maxNumberOfDisks;
@@ -190,7 +190,7 @@ public class ZipFile implements Closeable {
          * The actual channel, overrides any other input aspects like a File, Path, and so on.
          *
          * @param seekableByteChannel The actual channel.
-         * @return this.
+         * @return {@code this} instance.
          */
         public Builder setSeekableByteChannel(final SeekableByteChannel seekableByteChannel) {
             this.seekableByteChannel = seekableByteChannel;
@@ -201,7 +201,7 @@ public class ZipFile implements Closeable {
          * Sets whether to use InfoZIP Unicode Extra Fields (if present) to set the file names.
          *
          * @param useUnicodeExtraFields whether to use InfoZIP Unicode Extra Fields (if present) to set the file names.
-         * @return this.
+         * @return {@code this} instance.
          */
         public Builder setUseUnicodeExtraFields(final boolean useUnicodeExtraFields) {
             this.useUnicodeExtraFields = useUnicodeExtraFields;
@@ -242,14 +242,14 @@ public class ZipFile implements Closeable {
         }
     }
 
-    private static final class StoredStatisticsStream extends CountingInputStream implements InputStreamStatistics {
+    private static final class StoredStatisticsStream extends BoundedInputStream implements InputStreamStatistics {
         StoredStatisticsStream(final InputStream in) {
             super(in);
         }
 
         @Override
         public long getCompressedCount() {
-            return super.getByteCount();
+            return super.getCount();
         }
 
         @Override
@@ -528,7 +528,7 @@ public class ZipFile implements Closeable {
             channel.close();
 
             final Path parent = path.getParent();
-            final String basename = FilenameUtils.removeExtension(path.getFileName().toString());
+            final String basename = FilenameUtils.removeExtension(Objects.toString(path.getFileName(), null));
 
             return ZipSplitReadOnlySeekableByteChannel.forPaths(IntStream.range(0, (int) numberOfDisks).mapToObj(i -> {
                 if (i == numberOfDisks - 1) {

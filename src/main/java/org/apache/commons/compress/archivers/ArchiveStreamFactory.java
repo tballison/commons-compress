@@ -49,7 +49,7 @@ import org.apache.commons.compress.utils.IOUtils;
 import org.apache.commons.compress.utils.Sets;
 
 /**
- * Factory to create Archive[In|Out]putStreams from names or the first bytes of the InputStream. In order to add other implementations, you should extend
+ * Creates an Archive[In|Out]putStreams from names or the first bytes of the InputStream. In order to add other implementations, you should extend
  * ArchiveStreamFactory and override the appropriate methods (and call their implementation from super of course).
  *
  * Compressing a ZIP-File:
@@ -288,7 +288,7 @@ public class ArchiveStreamFactory implements ArchiveStreamProvider {
                 if (entry != null && entry.isCheckSumOK() && !entry.isDirectory() && entry.getSize() > 0 || count > 0) {
                     return TAR;
                 }
-            } catch (final Exception e) { // NOPMD NOSONAR
+            } catch (final Exception ignored) {
                 // can generate IllegalArgumentException as well as IOException auto-detection, simply not a TAR ignored
             }
         }
@@ -380,12 +380,12 @@ public class ArchiveStreamFactory implements ArchiveStreamProvider {
     /**
      * Constructs an instance using the specified encoding.
      *
-     * @param encoding the encoding to be used.
+     * @param entryEncoding the encoding to be used.
      *
      * @since 1.10
      */
-    public ArchiveStreamFactory(final String encoding) {
-        this.entryEncoding = encoding;
+    public ArchiveStreamFactory(final String entryEncoding) {
+        this.entryEncoding = entryEncoding;
     }
 
     /**

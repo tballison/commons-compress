@@ -20,9 +20,9 @@ package org.apache.commons.compress.utils;
 import static org.apache.commons.compress.AbstractTest.getFile;
 import static org.apache.commons.compress.AbstractTest.getPath;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
@@ -62,9 +62,10 @@ public class ZipSplitReadOnlySeekableByteChannelTest {
     @Test
     public void testChannelsPositionIsZeroAfterConstructor() throws IOException {
         final List<SeekableByteChannel> channels = getSplitZipChannels();
-        new ZipSplitReadOnlySeekableByteChannel(channels);
-        for (final SeekableByteChannel channel : channels) {
-            assertEquals(0, channel.position());
+        try (ZipSplitReadOnlySeekableByteChannel c = new ZipSplitReadOnlySeekableByteChannel(channels)) {
+            for (final SeekableByteChannel channel : channels) {
+                assertEquals(0, channel.position());
+            }
         }
     }
 
@@ -99,17 +100,17 @@ public class ZipSplitReadOnlySeekableByteChannelTest {
         list.add(secondFile);
 
         try (SeekableByteChannel channel = ZipSplitReadOnlySeekableByteChannel.forFiles(lastFile, list)) {
-            assertTrue(channel instanceof ZipSplitReadOnlySeekableByteChannel);
+            assertInstanceOf(ZipSplitReadOnlySeekableByteChannel.class, channel);
         }
 
         try (SeekableByteChannel channel = ZipSplitReadOnlySeekableByteChannel.forFiles(firstFile, secondFile, lastFile)) {
-            assertTrue(channel instanceof ZipSplitReadOnlySeekableByteChannel);
+            assertInstanceOf(ZipSplitReadOnlySeekableByteChannel.class, channel);
         }
     }
 
     @Test
     public void testForFilesThrowsOnNullArg() {
-        assertThrows(NullPointerException.class, () -> ZipSplitReadOnlySeekableByteChannel.forFiles(null));
+        assertThrows(NullPointerException.class, () -> ZipSplitReadOnlySeekableByteChannel.forFiles((File[]) null));
     }
 
     @Test
@@ -133,11 +134,11 @@ public class ZipSplitReadOnlySeekableByteChannelTest {
 
             @SuppressWarnings("resource") // try-with-resources closes
             final SeekableByteChannel channel1 = ZipSplitReadOnlySeekableByteChannel.forOrderedSeekableByteChannels(lastChannel, channels);
-            assertTrue(channel1 instanceof ZipSplitReadOnlySeekableByteChannel);
+            assertInstanceOf(ZipSplitReadOnlySeekableByteChannel.class, channel1);
 
             @SuppressWarnings("resource") // try-with-resources closes
             final SeekableByteChannel channel2 = ZipSplitReadOnlySeekableByteChannel.forOrderedSeekableByteChannels(firstChannel, secondChannel, lastChannel);
-            assertTrue(channel2 instanceof ZipSplitReadOnlySeekableByteChannel);
+            assertInstanceOf(ZipSplitReadOnlySeekableByteChannel.class, channel2);
         }
     }
 
@@ -151,7 +152,7 @@ public class ZipSplitReadOnlySeekableByteChannelTest {
 
     @Test
     public void testForOrderedSeekableByteChannelsThrowsOnNullArg() {
-        assertThrows(NullPointerException.class, () -> ZipSplitReadOnlySeekableByteChannel.forOrderedSeekableByteChannels(null));
+        assertThrows(NullPointerException.class, () -> ZipSplitReadOnlySeekableByteChannel.forOrderedSeekableByteChannels((SeekableByteChannel[]) null));
     }
 
     @Test
@@ -170,17 +171,17 @@ public class ZipSplitReadOnlySeekableByteChannelTest {
         list.add(secondFile);
 
         try (SeekableByteChannel channel = ZipSplitReadOnlySeekableByteChannel.forPaths(lastFile, list)) {
-            assertTrue(channel instanceof ZipSplitReadOnlySeekableByteChannel);
+            assertInstanceOf(ZipSplitReadOnlySeekableByteChannel.class, channel);
         }
 
         try (SeekableByteChannel channel = ZipSplitReadOnlySeekableByteChannel.forPaths(firstFile, secondFile, lastFile)) {
-            assertTrue(channel instanceof ZipSplitReadOnlySeekableByteChannel);
+            assertInstanceOf(ZipSplitReadOnlySeekableByteChannel.class, channel);
         }
     }
 
     @Test
     public void testForPathsThrowsOnNullArg() {
-        assertThrows(NullPointerException.class, () -> ZipSplitReadOnlySeekableByteChannel.forPaths(null));
+        assertThrows(NullPointerException.class, () -> ZipSplitReadOnlySeekableByteChannel.forPaths((Path[]) null));
     }
 
     @Test

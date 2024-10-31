@@ -37,7 +37,7 @@ import java.util.zip.ZipException;
 import org.apache.commons.compress.archivers.ArchiveEntry;
 import org.apache.commons.compress.archivers.EntryStreamOffsets;
 import org.apache.commons.compress.utils.ByteUtils;
-import org.apache.commons.compress.utils.TimeUtils;
+import org.apache.commons.io.file.attribute.FileTimes;
 
 /**
  * Extension that adds better handling of extra fields and provides access to the internal and external file attributes.
@@ -58,7 +58,7 @@ import org.apache.commons.compress.utils.TimeUtils;
  *
  * @NotThreadSafe
  */
-public class ZipArchiveEntry extends java.util.zip.ZipEntry implements ArchiveEntry, EntryStreamOffsets {
+public class ZipArchiveEntry extends ZipEntry implements ArchiveEntry, EntryStreamOffsets {
 
     /**
      * Indicates how the comment of this entry has been determined.
@@ -231,7 +231,7 @@ public class ZipArchiveEntry extends java.util.zip.ZipEntry implements ArchiveEn
     private static final int SHORT_SHIFT = 16;
 
     private static boolean canConvertToInfoZipExtendedTimestamp(final FileTime lastModifiedTime, final FileTime lastAccessTime, final FileTime creationTime) {
-        return TimeUtils.isUnixTime(lastModifiedTime) && TimeUtils.isUnixTime(lastAccessTime) && TimeUtils.isUnixTime(creationTime);
+        return FileTimes.isUnixTime(lastModifiedTime) && FileTimes.isUnixTime(lastAccessTime) && FileTimes.isUnixTime(creationTime);
     }
 
     private static boolean isDirectoryEntryName(final String entryName) {
@@ -251,7 +251,7 @@ public class ZipArchiveEntry extends java.util.zip.ZipEntry implements ArchiveEn
     }
 
     /**
-     * The {@link java.util.zip.ZipEntry} base class only supports the compression methods STORED and DEFLATED. We override the field so that any compression
+     * The {@link ZipEntry} base class only supports the compression methods STORED and DEFLATED. We override the field so that any compression
      * methods can be used.
      * <p>
      * The default value -1 means that the method has not been specified.
@@ -261,7 +261,7 @@ public class ZipArchiveEntry extends java.util.zip.ZipEntry implements ArchiveEn
     private int method = ZipMethod.UNKNOWN_CODE;
 
     /**
-     * The {@link java.util.zip.ZipEntry#setSize} method in the base class throws an IllegalArgumentException if the size is bigger than 2GB for Java versions
+     * The {@link ZipEntry#setSize} method in the base class throws an IllegalArgumentException if the size is bigger than 2GB for Java versions
      * &lt; 7 and even in Java 7+ if the implementation in java.util.zip doesn't support Zip64 itself (it is an optional feature).
      * <p>
      * We need to keep our own size information for Zip64 support.
@@ -342,32 +342,6 @@ public class ZipArchiveEntry extends java.util.zip.ZipEntry implements ArchiveEn
     }
 
     /**
-     * Creates a new ZIP entry with fields taken from the specified ZIP entry.
-     *
-     * <p>
-     * Assumes the entry represents a directory if and only if the name ends with a forward slash "/".
-     * </p>
-     *
-     * @param extraFieldFactory the extra field lookup factory.
-     * @param entry the entry to get fields from
-     * @throws ZipException on error
-     */
-    private ZipArchiveEntry(final Function<ZipShort, ZipExtraField> extraFieldFactory, final java.util.zip.ZipEntry entry) throws ZipException {
-        super(entry);
-        this.extraFieldFactory = extraFieldFactory;
-        setName(entry.getName());
-        final byte[] extra = entry.getExtra();
-        if (extra != null) {
-            setExtraFields(parseExtraFields(extra, true, ExtraFieldParsingMode.BEST_EFFORT));
-        } else {
-            // initializes extra data to an empty byte array
-            setExtra();
-        }
-        setMethod(entry.getMethod());
-        this.size = entry.getSize();
-    }
-
-    /**
      * Creates a new ZIP entry taking some information from the given path and using the provided name.
      *
      * <p>
@@ -410,11 +384,23 @@ public class ZipArchiveEntry extends java.util.zip.ZipEntry implements ArchiveEn
      * Assumes the entry represents a directory if and only if the name ends with a forward slash "/".
      * </p>
      *
+     * @param extraFieldFactory the extra field lookup factory.
      * @param entry the entry to get fields from
      * @throws ZipException on error
      */
-    public ZipArchiveEntry(final java.util.zip.ZipEntry entry) throws ZipException {
-        this(null, entry);
+    private ZipArchiveEntry(final Function<ZipShort, ZipExtraField> extraFieldFactory, final ZipEntry entry) throws ZipException {
+        super(entry);
+        this.extraFieldFactory = extraFieldFactory;
+        setName(entry.getName());
+        final byte[] extra = entry.getExtra();
+        if (extra != null) {
+            setExtraFields(parseExtraFields(extra, true, ExtraFieldParsingMode.BEST_EFFORT));
+        } else {
+            // initializes extra data to an empty byte array
+            setExtra();
+        }
+        setMethod(entry.getMethod());
+        this.size = entry.getSize();
     }
 
     /**
@@ -460,13 +446,27 @@ public class ZipArchiveEntry extends java.util.zip.ZipEntry implements ArchiveEn
      * @throws ZipException on error
      */
     public ZipArchiveEntry(final ZipArchiveEntry entry) throws ZipException {
-        this((java.util.zip.ZipEntry) entry);
+        this((ZipEntry) entry);
         setInternalAttributes(entry.getInternalAttributes());
         setExternalAttributes(entry.getExternalAttributes());
         setExtraFields(entry.getAllExtraFieldsNoCopy());
         setPlatform(entry.getPlatform());
         final GeneralPurposeBit other = entry.getGeneralPurposeBit();
         setGeneralPurposeBit(other == null ? null : (GeneralPurposeBit) other.clone());
+    }
+
+    /**
+     * Creates a new ZIP entry with fields taken from the specified ZIP entry.
+     *
+     * <p>
+     * Assumes the entry represents a directory if and only if the name ends with a forward slash "/".
+     * </p>
+     *
+     * @param entry the entry to get fields from
+     * @throws ZipException on error
+     */
+    public ZipArchiveEntry(final ZipEntry entry) throws ZipException {
+        this(null, entry);
     }
 
     /**
@@ -779,10 +779,10 @@ public class ZipArchiveEntry extends java.util.zip.ZipEntry implements ArchiveEn
     }
 
     /**
-     * Wraps {@link java.util.zip.ZipEntry#getTime} with a {@link Date} as the entry's last modified date.
+     * Wraps {@link ZipEntry#getTime} with a {@link Date} as the entry's last modified date.
      *
      * <p>
-     * Changes to the implementation of {@link java.util.zip.ZipEntry#getTime} leak through and the returned value may depend on your local time zone as well as
+     * Changes to the implementation of {@link ZipEntry#getTime()} leak through and the returned value may depend on your local time zone as well as
      * your version of Java.
      * </p>
      */
@@ -1519,7 +1519,7 @@ public class ZipArchiveEntry extends java.util.zip.ZipEntry implements ArchiveEn
     }
 
     /**
-     * Workaround for the fact that, as of Java 17, {@link java.util.zip.ZipEntry} does not properly modify the entry's {@code xdostime} field, only setting
+     * Workaround for the fact that, as of Java 17, {@link ZipEntry} does not properly modify the entry's {@code xdostime} field, only setting
      * {@code mtime}. While this is not strictly necessary, it's better to maintain the same behavior between this and the NTFS field.
      */
     private void updateTimeFromExtendedTimestampField() {
@@ -1548,7 +1548,7 @@ public class ZipArchiveEntry extends java.util.zip.ZipEntry implements ArchiveEn
     }
 
     /**
-     * Workaround for the fact that, as of Java 17, {@link java.util.zip.ZipEntry} parses NTFS timestamps with a maximum precision of microseconds, which is
+     * Workaround for the fact that, as of Java 17, {@link ZipEntry} parses NTFS timestamps with a maximum precision of microseconds, which is
      * lower than the 100ns precision provided by this extra field.
      */
     private void updateTimeFromNtfsField() {

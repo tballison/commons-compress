@@ -21,7 +21,15 @@ package org.apache.commons.compress.compressors;
 import java.io.InputStream;
 
 public abstract class CompressorInputStream extends InputStream {
+
     private long bytesRead;
+
+    /**
+     * Constructs a new instance.
+     */
+    public CompressorInputStream() {
+        // empty
+    }
 
     /**
      * Increments the counter of already read bytes. Doesn't increment if the EOF has been hit (read == -1)
@@ -46,7 +54,7 @@ public abstract class CompressorInputStream extends InputStream {
     }
 
     /**
-     * Returns the current number of bytes read from this stream.
+     * Gets the current number of bytes read from this stream.
      *
      * @return the number of read bytes
      *
@@ -57,7 +65,7 @@ public abstract class CompressorInputStream extends InputStream {
     }
 
     /**
-     * Returns the current number of bytes read from this stream.
+     * Gets the current number of bytes read from this stream.
      *
      * @return the number of read bytes
      * @deprecated this method may yield wrong results for large archives, use #getBytesRead instead
@@ -68,7 +76,7 @@ public abstract class CompressorInputStream extends InputStream {
     }
 
     /**
-     * Returns the amount of raw or compressed bytes read by the stream.
+     * Gets the amount of raw or compressed bytes read by the stream.
      *
      * <p>
      * This implementation invokes {@link #getBytesRead}.

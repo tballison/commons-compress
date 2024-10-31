@@ -22,6 +22,7 @@ import static org.apache.commons.compress.AbstractTest.getPath;
 import static org.apache.commons.compress.archivers.zip.ZipArchiveEntryRequest.createZipArchiveEntryRequest;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.ByteArrayInputStream;
@@ -83,7 +84,8 @@ public class ZipMemoryFileSystemTest {
             walk.sorted(Comparator.reverseOrder()).peek(path -> println("Deleting: " + path.toAbsolutePath())).forEach(path -> {
                 try {
                     Files.deleteIfExists(path);
-                } catch (final IOException ignore) {
+                } catch (final IOException ignored) {
+                    // ignored
                 }
             });
         }
@@ -106,11 +108,11 @@ public class ZipMemoryFileSystemTest {
             list.add(secondFile);
 
             try (SeekableByteChannel channel = ZipSplitReadOnlySeekableByteChannel.forPaths(lastFile, list)) {
-                assertTrue(channel instanceof ZipSplitReadOnlySeekableByteChannel);
+                assertInstanceOf(ZipSplitReadOnlySeekableByteChannel.class, channel);
             }
 
             try (SeekableByteChannel channel = ZipSplitReadOnlySeekableByteChannel.forPaths(firstFile, secondFile, lastFile)) {
-                assertTrue(channel instanceof ZipSplitReadOnlySeekableByteChannel);
+                assertInstanceOf(ZipSplitReadOnlySeekableByteChannel.class, channel);
             }
         }
     }
